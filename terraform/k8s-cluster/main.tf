@@ -190,7 +190,7 @@ resource "aws_security_group" "kubeadm_sg_flannel" {
     Name = "kubeadm_sg_flannel"
   }
 
-  ingress = {
+  ingress {
     description= "udp backend"
     from_port       = 8285
     to_port         = 8285
