@@ -7,7 +7,11 @@ terraform {
     tls = {
         source = "hashicorp/tls"
         version = "4.0.4"
-  }
+    }
+    ansible = {
+      source = "ansible/ansible"
+      version = "1.1.0"
+    }
   }
 }
 
@@ -216,9 +220,9 @@ resource "aws_key_pair" "kubeadm_key" {
   provisioner "local-exec" {
     command = "echo '${tls_private_key.kubeadm_private_key.private_key_pem}' > ./private-key.pem"
   }
-  }
+}
 
-  resource "aws_instance" "kubeadm_sg_control_plane" {
+  resource "aws_instance" "kubeadm_control_plane" {
     instance_type = "t3.micro"
     ami           = var.kubeadm_ami 
     key_name      = aws_key_pair.kubeadm_key.key_name
@@ -238,6 +242,7 @@ resource "aws_key_pair" "kubeadm_key" {
 
     tags = {
       Name="Kubeadm ControlPanel"
+      Role = "Worker Node"
     }
 
     provisioner "local-exec" {
@@ -245,4 +250,61 @@ resource "aws_key_pair" "kubeadm_key" {
     }
 
 
+}
+
+resource "aws_instance" "kubeadm_worker_nodes" {
+  count         = var.kudeadm_instance_count
+  ami           = var.kubeadm_ami
+  instance_type = "t3.micro"
+  key_name = aws_key_pair.kubeadm_key.key_name
+  associate_public_ip_address = true
+
+  security_groups = [
+    aws_security_group.kubeadm_sg_common.name,
+    aws_security_group.kubeadm_sg_flannel.name,
+    aws_security_group.kubeadm_sg_worker_nodes.name,
+  ]
+
+  provisioner "local-exec" {
+      command = "echo 'worker-${count.index} ${self.public_ip}' >> ./files/hosts"
   }
+  tags = {
+      Name="Kubeadm WorkerNodes ${count.index}"
+      Role = "Worker Node"
+  }
+}
+
+#ansible related resources
+
+resource "ansible_host" "kubeadm_control_plane_host" {
+  depends_on = [ 
+    aws_instance.kubeadm_control_plane
+   ]
+
+   name = "control_plane"
+   groups = ["master"]
+
+   variables = {
+    ansible_user = "ubuntu"
+    ansible_host = aws_instance.kubeadm_control_plane.public_ip
+    ansible_ssh_private_key_file = "./private-key.pem"
+    node_hostname="master"
+   }
+}
+
+resource "ansible_host" "kubeadm_worker_nodes_host" {
+  depends_on = [ 
+    aws_instance.kubeadm_worker_nodes
+   ]
+   count = var.kudeadm_instance_count
+   name = "worker-${count.index}"
+   groups = ["workers"]
+
+   variables = {
+    ansible_user = "ubuntu"
+    ansible_host = aws_instance.kubeadm_worker_nodes[count.index].public_ip
+    ansible_ssh_private_key_file = "./private-key.pem"
+    node_hostname="worker-${count.index}"
+
+   }
+}
