@@ -6,7 +6,7 @@ variable "kubeadm_key_name" {
 
 variable "kubeadm_ami" {
   description = "ami id for ubuntu image"
-  default = "" #admi ubuntu server 
+  default = "ami-0014ce3e52359afbd" #admi ubuntu server 
 }
 
 variable "kudeadm_instance_count" {
