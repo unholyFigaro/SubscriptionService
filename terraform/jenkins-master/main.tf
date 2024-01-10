@@ -114,14 +114,25 @@ resource "null_resource" "name" {
 output "website_url" {
   value     = join ("", ["http://", aws_instance.ec2_instance.public_dns, ":", "8080"])
 }
-╷
-│ Error: file provisioner error
-│ 
-│   with null_resource.name,
-│   on main.tf line 95, in resource "null_resource" "name":
-│   95:   provisioner "file" {
-│ 
-│ timeout - last error: SSH authentication failed (ec2-user@16.170.237.55:22):
-│ ssh: handshake failed: ssh: unable to authenticate, attempted methods [none
-│ publickey], no supported methods remain
+
+
+
+resource "tls_private_key" "kubeadm_private_key" {
+  algorithm = "RSA"
+  rsa_bits = 4096
+
+  provisioner "local-exec" {
+    command = "echo '${self.public_key_pem}' > ./pubkey.pem"
+  }
+
+}
+
+resource "aws_key_pair" "kubeadm_key" {
+  key_name = var.kubeadm_key_name
+  public_key = tls_private_key.kubeadm_private_key.public_key_openssh
+  
+  provisioner "local-exec" {
+    command = "echo '${tls_private_key.kubeadm_private_key.private_key_pem}' > ./private-key.pem"
+  }
+}
 
