@@ -1,4 +1,3 @@
-# configured aws provider with proper credentials
 provider "aws" {
   region    = "eu-north-1"
 }
@@ -31,7 +30,7 @@ resource "aws_default_subnet" "default_az1" {
 resource "aws_security_group" "jenkins_master_security_group" {
   name        = "ec2 security group"
   description = "allow access on ports 8080 and 22"
-  vpc_id      = [aws_default_vpc.default_vpc.id]
+  vpc_id      = aws_default_vpc.default_vpc.id
 
   # allow access on port 8080
   ingress {
@@ -63,15 +62,32 @@ resource "aws_security_group" "jenkins_master_security_group" {
   }
 }
 
+resource "tls_private_key" "jenkins_private_key" {
+  algorithm = "RSA"
+  rsa_bits = 4096
 
+  provisioner "local-exec" {
+    command = "echo '${self.public_key_pem}' > ./pubkey.pem"
+  }
+
+}
+
+resource "aws_key_pair" "jenkins_key" {
+  key_name = "jenkins"
+  public_key = tls_private_key.jenkins_private_key.public_key_openssh
+  
+  provisioner "local-exec" {
+    command = "echo '${tls_private_key.jenkins_private_key.private_key_pem}' > ./private-key.pem"
+  }
+}
 
 # launch the ec2 instance and install website
 resource "aws_instance" "jenkins_master" {
-  ami                    = ami-0014ce3e52359afbd
+  ami                    = "ami-0014ce3e52359afbd"
   instance_type          = "t3.medium"
   subnet_id              = aws_default_subnet.default_az1.id
-  vpc_security_group_ids = aws_security_group.jenkins_master_security_group.id
-  key_name               = "jenkins"
+  vpc_security_group_ids = [aws_security_group.jenkins_master_security_group.id]
+  key_name               = aws_key_pair.jenkins_key.key_name
   # user_data            = file("install_jenkins.sh")
 
   tags = {
@@ -87,7 +103,7 @@ resource "null_resource" "name" {
   connection {
     type        = "ssh"
     user        = "ec2-user"
-    private_key = file("/home/administrator/SubsriptionService/terraform/jenkins.pem")
+    private_key = file("/home/administrator/SubscriptionService/terraform/jenkins-master/private-key.pem")
     host        = aws_instance.jenkins_master.public_ip
   }
 
@@ -112,27 +128,17 @@ resource "null_resource" "name" {
 
 # print the url of the jenkins server
 output "website_url" {
-  value     = join ("", ["http://", aws_instance.ec2_instance.public_dns, ":", "8080"])
+  value     = join ("", ["http://", aws_instance.jenkins_master.public_dns, ":", "8080"])
 }
 
-
-
-resource "tls_private_key" "kubeadm_private_key" {
-  algorithm = "RSA"
-  rsa_bits = 4096
-
-  provisioner "local-exec" {
-    command = "echo '${self.public_key_pem}' > ./pubkey.pem"
-  }
-
-}
-
-resource "aws_key_pair" "kubeadm_key" {
-  key_name = var.kubeadm_key_name
-  public_key = tls_private_key.kubeadm_private_key.public_key_openssh
-  
-  provisioner "local-exec" {
-    command = "echo '${tls_private_key.kubeadm_private_key.private_key_pem}' > ./private-key.pem"
-  }
-}
+│ Error: file provisioner error
+│ 
+│   with null_resource.name,
+│   on main.tf line 112, in resource "null_resource" "name":
+│  112:   provisioner "file" {
+│ 
+│ interrupted - last error: SSH authentication failed
+│ (ec2-user@16.170.146.245:22): ssh: handshake failed: ssh: unable to
+│ authenticate, attempted methods [none publickey], no supported methods remain
+╵
 
