@@ -114,12 +114,14 @@ resource "null_resource" "name" {
 output "website_url" {
   value     = join ("", ["http://", aws_instance.ec2_instance.public_dns, ":", "8080"])
 }
-
- Error: file provisioner error
+╷
+│ Error: file provisioner error
 │ 
 │   with null_resource.name,
 │   on main.tf line 95, in resource "null_resource" "name":
 │   95:   provisioner "file" {
 │ 
-│ Failed to read ssh private key: no key found
+│ timeout - last error: SSH authentication failed (ec2-user@16.170.237.55:22):
+│ ssh: handshake failed: ssh: unable to authenticate, attempted methods [none
+│ publickey], no supported methods remain
 
