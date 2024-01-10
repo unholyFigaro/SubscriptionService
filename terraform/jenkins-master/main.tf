@@ -31,7 +31,7 @@ resource "aws_default_subnet" "default_az1" {
 resource "aws_security_group" "jenkins_master_security_group" {
   name        = "ec2 security group"
   description = "allow access on ports 8080 and 22"
-  vpc_id      = aws_default_vpc.default_vpc.id
+  vpc_id      = [aws_default_vpc.default_vpc.id]
 
   # allow access on port 8080
   ingress {
@@ -71,7 +71,7 @@ resource "aws_instance" "jenkins_master" {
   instance_type          = "t3.medium"
   subnet_id              = aws_default_subnet.default_az1.id
   vpc_security_group_ids = aws_security_group.jenkins_master_security_group.id
-  key_name               = "..."
+  key_name               = "jenkins"
   # user_data            = file("install_jenkins.sh")
 
   tags = {
@@ -87,7 +87,7 @@ resource "null_resource" "name" {
   connection {
     type        = "ssh"
     user        = "ec2-user"
-    private_key = file("/path/to/key")
+    private_key = file("/home/administrator/SubsriptionService/terraform/jenkins.pem")
     host        = aws_instance.jenkins_master.public_ip
   }
 
@@ -122,3 +122,4 @@ output "website_url" {
 │   95:   provisioner "file" {
 │ 
 │ Failed to read ssh private key: no key found
+
