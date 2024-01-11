@@ -106,30 +106,30 @@ resource "aws_instance" "nexus" {
 
 
 # an empty resource block
-# resource "null_resource" "name" {
+resource "null_resource" "name" {
 
-#   # ssh into the ec2 instance 
-#   connection {
-#     type        = "ssh"
-#     user        = "ubuntu"
-#     private_key = file("/home/administrator/SubscriptionService/terraform/nexus/private-key.pem")
-#     host        = aws_instance.nexus.public_dns
-#   }
+  # ssh into the ec2 instance 
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file("/home/administrator/SubscriptionService/terraform/nexus/private-key.pem")
+    host        = aws_instance.nexus.public_dns
+  }
 
-#   # copy the install_nexus.sh file from your computer to the ec2 instance 
-#   provisioner "file" {
-#     source      = "./install_nexus.sh"
-#     destination = "/tmp/install_nexus.sh"
-#   }
+  # copy the install_nexus.sh file from your computer to the ec2 instance 
+  provisioner "file" {
+    source      = "./install_nexus.sh"
+    destination = "/tmp/install_nexus.sh"
+  }
 
-#   # set permissions and run the install_nexus.sh file
-#   provisioner "remote-exec" {
-#     inline = [
-#         "sudo chmod +x /tmp/install_nexus.sh",
-#         "sh /tmp/install_nexus.sh"
-#     ]
-#   }
+  # set permissions and run the install_nexus.sh file
+  provisioner "remote-exec" {
+    inline = [
+        "sudo chmod +x /tmp/install_nexus.sh",
+        "sh /tmp/install_nexus.sh"
+    ]
+  }
 
-#   # wait for ec2 to be created
-#   depends_on = [aws_instance.nexus]
-# }
+  # wait for ec2 to be created
+  depends_on = [aws_instance.nexus]
+}
