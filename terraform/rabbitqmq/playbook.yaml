@@ -1,0 +1,121 @@
+- name: Install rabbitMQ
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    adm_pass: RabbMQ_admin\$1 #Здесь симво $ экранируется, пароль  RabbMQ_admin$1
+    dev_pass: esb1DEVRabbitMQ
+  tasks:
+      
+    #- name: Execute Bash Script
+    #  script: ./files/rabbitMQinstall.sh
+
+    - name: Copy Debian 12 sources list
+      ansible.builtin.copy:
+        src: ./files/sources_12.list
+        dest: /etc/apt/sources.list
+
+    - name: Update cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install erlang
+      ansible.builtin.apt:
+        name:
+          - erlang-base 
+          - erlang-asn1
+          - erlang-crypto
+          - erlang-eldap
+          - erlang-ftp
+          - erlang-inets 
+          - erlang-mnesia
+          - erlang-os-mon 
+          - erlang-parsetools
+          - erlang-public-key 
+          - erlang-runtime-tools 
+          - erlang-snmp 
+          - erlang-ssl
+          - erlang-syntax-tools
+          - erlang-tftp 
+          - erlang-tools
+          - erlang-xmerl
+        state: present
+
+    - name: Copy Debian 11 sources list
+      ansible.builtin.copy:
+        src: ./files/sources_11.list
+        dest: /etc/apt/sources.list
+
+    - name: Update cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Copy a .deb package    
+      ansible.builtin.copy:
+        src: files/rabbitmq-server_3.12.2-1_all.deb
+        dest: /tmp
+        mode: "0775" 
+ 
+    - name: Install a .deb package
+      ansible.builtin.apt:
+        deb: /tmp/rabbitmq-server_3.12.2-1_all.deb
+        state: present
+
+    - name: Enables the rabbitmq_management plugin
+      community.rabbitmq.rabbitmq_plugin:
+        names: rabbitmq_management
+        state: enabled
+    
+    - name: Create admin user 
+      community.rabbitmq.rabbitmq_user:
+        user: admin
+        password: "{{ adm_pass }}"
+        tags: administrator
+        vhost: /
+        configure_priv: .*
+        read_priv: .*
+        write_priv: .*
+        update_password: always
+        state: present
+             
+    - name: Create developer user
+      community.rabbitmq.rabbitmq_user:
+        user: developer
+        password: "{{ dev_pass }}"
+        tags: administrator
+        vhost: /
+        configure_priv: .*
+        read_priv: .*
+        write_priv: .*
+        update_password: always
+        state: present
+
+    - name: Копирование файлов конфигурации 1/3
+      copy:
+        src: ./files/rabbitmq.conf
+        dest: /etc/rabbitmq/      
+
+    - name: Копирование файлов конфигурации 2/3
+      copy:
+        src: ./files/advanced.config
+        dest: /etc/rabbitmq/    
+
+    - name: Копирование файлов конфигурации 3/3
+      copy:
+        src: ./files/RMQ
+        dest: /etc/ssl/    
+    
+    - name: Установка политики
+      rabbitmq_policy:
+        name: HA
+        apply_to: queues
+        pattern: .*
+        tags:
+          ha-mode: all
+          ha-sync-mode: manual
+        state: present
+
+    - name: Рестарт RabbitMq
+      service:
+        name: rabbitmq-server
+        state: restarted
